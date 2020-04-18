@@ -20,6 +20,7 @@ import org.altbeacon.beacon.MonitorNotifier;
 import org.altbeacon.beacon.RangeNotifier;
 import org.altbeacon.beacon.Region;
 
+import java.io.PrintWriter;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -40,6 +41,9 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer {
     byte[] testByte = test.getBytes();
     //Identifier UUID = new  Identifier(testByte);
 */
+    private int beaconIndexer=0;
+    private int beaconIdListSize=4;
+    private boolean firstScan= true;
 
     private BeaconManager beaconManager = null;
     private Region anyRegion;
@@ -49,12 +53,14 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer {
     private ArrayList <String> minorIdList;
     private String minorIdArray[]={ "0","1","2","3"};
     private String majorIdArray[]={"0","0","0","0"};
-    private String majorId;
-    private String minorId;
+    private String uuIdString = "11111111-1111-1111-1111-111111111111";// a univeral id (Constant)to differentiate differnt proximity networks. picked for simplicity.
+    private String majorIdString = minorIdArray[beaconIndexer];
+    private String minorIdString = majorIdArray[beaconIndexer];
+    private Identifier uuId= Identifier.parse(uuIdString); // regions are defined by Identifer objects
+    private Identifier majorId = Identifier.parse(majorIdString);
+    private Identifier minorId = Identifier.parse(minorIdString);
 
-    private int beaconIndexer=0;
-    private int beaconIdListSize=4;
-    private boolean firstScan= true;
+
 
 
     @Override
@@ -95,15 +101,21 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer {
     @Override
     public void onBeaconServiceConnect() {
         beaconManager.addRangeNotifier(new RangeNotifier() {
+            int rangingIterationNumber= 1;
+
             @Override
+            //output to log
             public void didRangeBeaconsInRegion(Collection<Beacon> beacons, Region region) {
+                Toast.makeText(MainActivity.this,
+                        "Ranged Beacons", Toast.LENGTH_LONG).show();
+                //int rangingIterationNumber= 1;
                 for(Beacon oneBeacon : beacons) {
                     Calendar c = Calendar.getInstance();
                     SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
                     String formattedDate = df.format(c.getTime());
-                    Log.d("ID:", "distance: " + oneBeacon.getDistance() + " id:" + oneBeacon.getId1() + "/" + oneBeacon.getId2() + "/" + oneBeacon.getId3());
-                    displayAlert("didEnterRegion", "EnteringRegion: " + region.getUniqueId() + "Time: "+ formattedDate +
-                            "distance: " + oneBeacon.getDistance() + " id:" + oneBeacon.getId1() + "/" + oneBeacon.getId2() + "/" + oneBeacon.getId3());
+                    Log.d("RangingScan "+ rangingIterationNumber +": " , "distance: " + oneBeacon.getDistance() );
+                   // System.out.print(oneBeacon.getDistance());
+                    rangingIterationNumber++;
                 }
 
             }
@@ -155,16 +167,14 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer {
     }
 */
 
-    // method called when startScanning button pressed; specifies region and calls beaconManger to search for Raspberry Pi
+    // Start the RangingScan for raspberry pi/ unlike beaconMonitoring in a previox branch we shall only call this method once
     private void startScanning() {
         Log.d(TAG, "-----------startScanning()----");
-        //Define Region to search for; Region is made up of Identifers that correspoind to a specific beacon
-        Identifier uUID = Identifier.parse("11111111-1111-1111-1111-111111111111");
         try {
-            //null is a wildcard which means search for any beacon
-            Region region = new Region("RegionPiDemo",uUID
-                    , null, null);
-            beaconManager.startRangingBeaconsInRegion(region);
+            //search for our test beacon to get measurments from
+            Region region = new Region("RegionPiDemo",uuId
+                    , Identifier.parse("0") ,  Identifier.parse("0"));
+            beaconManager.startRangingBeaconsInRegion(region);// starts the BE
             //RemoteException to catch Errors with the Android services beaconManager is accessing
         } catch (RemoteException e) {
             e.printStackTrace();
@@ -181,8 +191,11 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer {
 
         try {
             Region region = new Region("RegionPiDemo",
-                    null, null, null);
+                    uuId, null, null);
             beaconManager.stopMonitoringBeaconsInRegion(region);
+            Toast.makeText(MainActivity.this,
+                    "Ranging Beacons Stopped", Toast.LENGTH_LONG).show();
+
         } catch (RemoteException e) {
             e.printStackTrace();
         }
