@@ -43,7 +43,11 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer {
 */
     private int beaconIndexer=0;
     private int beaconIdListSize=4;
-    private boolean firstScan= true;
+    private boolean allBeaconsVisited= false;
+    private double passedThreshold = 2.00;// acceptable value based off of measured distance analysis that you have passed the beacon.
+    //these values are to prevent causing a reroute based off of  picking up  the expected beacon twice
+    private String foundMajorId= null;
+    private String foundMinorId= "placeHolder";
 
     private BeaconManager beaconManager = null;
     private Region anyRegion;
@@ -57,8 +61,8 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer {
     private String majorIdString = minorIdArray[beaconIndexer];
     private String minorIdString = majorIdArray[beaconIndexer];
     private Identifier uuId= Identifier.parse(uuIdString); // regions are defined by Identifer objects
-    private Identifier majorId = Identifier.parse(majorIdString);
-    private Identifier minorId = Identifier.parse(minorIdString);
+    private Identifier expectedMajorId = Identifier.parse(majorIdString);
+    private Identifier expectMinorId = Identifier.parse(minorIdString);
 
 
 
@@ -105,18 +109,44 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer {
 
             @Override
             //output to log
-            public void didRangeBeaconsInRegion(Collection<Beacon> beacons, Region region) {
-                Toast.makeText(MainActivity.this,
-                        "Ranged Beacons", Toast.LENGTH_LONG).show();
-                //int rangingIterationNumber= 1;
-                for(Beacon oneBeacon : beacons) {
-                    Calendar c = Calendar.getInstance();
-                    SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-                    String formattedDate = df.format(c.getTime());
-                    Log.d("RangingScan "+ rangingIterationNumber +": " , "distance: " + oneBeacon.getDistance() );
-                   // System.out.print(oneBeacon.getDistance());
-                    rangingIterationNumber++;
-                }
+            public void didRangeBeaconsInRegion(Collection<Beacon> beacons, Region region) { // will range every 1001 ms until stop ranging is called
+
+                    Log.d("Ranging", "RangingIteration");//testing
+                    for (Beacon oneBeacon : beacons) {// loop through all of the available beacons found by the ranging call
+                        if (oneBeacon.getDistance() < passedThreshold && oneBeacon.getId2().toString().equals(expectedMajorId) && oneBeacon.getId3().toString().equals(expectMinorId))// if  we have passed the  the beacon we were expecting
+                        {
+                            Log.d("Ranging", "Expected beacon found  found Major:\" + expectedMajorId + \" Minor:\" + expectMinorId + \" distance");
+                            Toast.makeText(MainActivity.this,
+                                    "Expected beacon", Toast.LENGTH_LONG).show();
+                            beaconIndexer++;// points to next beacon identifiers
+                            foundMajorId= oneBeacon.getId2().toString();
+                            foundMinorId= oneBeacon.getId3().toString();
+
+                            if(beaconIndexer > majorIdArray.length)// if gone through all of the beacon
+                            {
+                                Log.d("Ranging", " Before stopScanning():all beacons have been found");
+                                stopScanning();
+                                Log.d("Ranging", "all beacons have been found");//testing
+                                Toast.makeText(MainActivity.this,
+                                        "AllBeaconsFound", Toast.LENGTH_LONG).show();
+
+                                //ToDo Eric call back that everything was successful???
+                            }
+
+
+                        } else if (oneBeacon.getDistance() < passedThreshold && (!oneBeacon.getId3().toString().equals(foundMinorId)) )// we have have passed a  beacon and it is on the same floor.
+                        {
+                            Log.d("Ranging", " Before stopScanning():all beacons have been found");
+                            stopScanning();
+                            Log.d("Ranging", "Expected beacon found  found Major:\" + expectedMajorId + \" Minor:\" + expectMinorId + \" distance");
+                            Toast.makeText(MainActivity.this,
+                                    " Unexpected beacon found Major:", Toast.LENGTH_LONG).show();
+
+                            //ToDo Eric send call back to indicate reroute();
+                        }
+                    }
+
+
 
             }
         });
@@ -171,9 +201,9 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer {
     private void startScanning() {
         Log.d(TAG, "-----------startScanning()----");
         try {
-            //search for our test beacon to get measurments from
+            //range for all beacons within our proximity network
             Region region = new Region("RegionPiDemo",uuId
-                    , Identifier.parse("0") ,  Identifier.parse("0"));
+                    ,null,  null);
             beaconManager.startRangingBeaconsInRegion(region);// starts the BE
             //RemoteException to catch Errors with the Android services beaconManager is accessing
         } catch (RemoteException e) {
