@@ -58,7 +58,7 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer {
     private String minorIdArray[]={ "0","1","2","3"};
     private String majorIdArray[]={"0","0","0","0"};
     private String uuIdString = "11111111-1111-1111-1111-111111111111";// a univeral id (Constant)to differentiate differnt proximity networks. picked for simplicity.
-    //private String majorIdString = minorIdArray[beaconIndexer];
+   // private String majorIdString = minorIdArray[beaconIndexer];
     //private String minorIdString = majorIdArray[beaconIndexer];
     private Identifier uuId= Identifier.parse(uuIdString); // regions are defined by Identifer objects
     //private Identifier expectedMajorId = Identifier.parse(majorIdString);
@@ -105,23 +105,28 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer {
     @Override
     public void onBeaconServiceConnect() {
         beaconManager.addRangeNotifier(new RangeNotifier() {
-          //  private int beaconIndexer=0;
+            private int beaconIndexer=0;
+           private String minorIdString;
+           private String majorIdString;
 
             @Override
-            //output to log
+            //shall keep calling didRangeBeaconsInRegion until we stop scanning
             public void didRangeBeaconsInRegion(Collection<Beacon> beacons, Region region) { // will range every 1001 ms until stop ranging is called
-              String majorIdString = minorIdArray[beaconIndexer];
-              String minorIdString = majorIdArray[beaconIndexer];
-                    Log.d("Ranging", "RangingIteration");//testing
+                if (beaconIndexer<majorIdArray.length) {// prevent out of bounds
+                     minorIdString = minorIdArray[beaconIndexer];
+                     majorIdString = majorIdArray[beaconIndexer];
+                }
+                Log.d("Ranging", "RangingIteration: looking for beacon Major: " + majorIdString + " Minor: " + minorIdString);//testing
                     for (Beacon oneBeacon : beacons) {// loop through all of the available beacons found by the ranging call
                         if (oneBeacon.getDistance() < passedThreshold && oneBeacon.getId2().toString().equals(majorIdString) && oneBeacon.getId3().toString().equals(minorIdString))// if  we have passed the  the beacon we were expecting
                         {
-                            Log.d("Ranging", "Expected beacon found  found Major:" + minorIdString + " Minor:" + majorIdString + " Measured distance:" + oneBeacon.getDistance() );
+                            Log.d("Ranging", "Expected beacon found  found Major:" + majorIdString + " Minor:" + minorIdString + " Measured distance:" + oneBeacon.getDistance() );
                             Toast.makeText(MainActivity.this,
                                     "Expected beacon", Toast.LENGTH_LONG).show();
                             beaconIndexer++;// points to next beacon identifiers
                             foundMajorId= oneBeacon.getId2().toString();
                             foundMinorId= oneBeacon.getId3().toString();
+
 
                             if(beaconIndexer > majorIdArray.length)// if gone through all of the beacon
                             {
@@ -135,7 +140,7 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer {
                             }
 
 
-                        } else if (oneBeacon.getDistance() < passedThreshold && !(oneBeacon.getId3().toString().equals(foundMinorId)) )// we have have passed a  beacon and it is on the same floor.
+                        } else if (oneBeacon.getDistance() < passedThreshold && !(oneBeacon.getId3().toString().equals(foundMinorId)) )// we have passed an unexpected beacon //current logic does not account for different building with adjacent same minor id's could ensure not an issue through placemnt
                         {
                             Log.d("Ranging", " Before stopScanning():UNEXPECTED");
                             stopScanning();
